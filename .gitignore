@@ -1,0 +1,15 @@
+# Firebase secrets
+*.json
+
+# Model files (optional – you can keep or remove)
+*.pkl
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Virtual environment
+venv/
+
+# OS files
+.DS_Store
