@@ -17,6 +17,11 @@ MAX_ATTEMPTS = 3              # fraud threshold
 LOCK_TIME = 10                # seconds
 
 # ===============================
+# SIMULATED BANK DATA
+# ===============================
+balance = 5000
+
+# ===============================
 # INITIALIZE FIREBASE
 # ===============================
 cred = credentials.Certificate("ai-banking-system-firebase-adminsdk-fbsvc-bb5c32abf3.json")
@@ -24,7 +29,7 @@ firebase_admin.initialize_app(cred)
 db = firestore.client()
 
 # ===============================
-# LOG FUNCTION (CLOUD DATABASE)
+# CLOUD LOG FUNCTION
 # ===============================
 def log_event(user, status):
     data = {
@@ -33,6 +38,49 @@ def log_event(user, status):
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
     }
     db.collection("login_logs").add(data)
+
+# ===============================
+# BANKING MENU
+# ===============================
+def banking_menu():
+    global balance
+
+    while True:
+        print("\n🏦 Secure Banking Menu")
+        print("1. Check Balance")
+        print("2. Withdraw")
+        print("3. Deposit")
+        print("4. Exit")
+
+        choice = input("Enter choice: ")
+
+        if choice == "1":
+            print("💰 Current Balance:", balance)
+            log_event(AUTHORIZED_USER, f"Checked Balance: {balance}")
+
+        elif choice == "2":
+            amt = int(input("Enter amount to withdraw: "))
+            if amt <= balance:
+                balance -= amt
+                print("✅ Withdrawal Successful")
+                print("💰 Remaining Balance:", balance)
+                log_event(AUTHORIZED_USER, f"Withdrawn: {amt}")
+            else:
+                print("❌ Insufficient Balance")
+
+        elif choice == "3":
+            amt = int(input("Enter amount to deposit: "))
+            balance += amt
+            print("✅ Deposit Successful")
+            print("💰 Updated Balance:", balance)
+            log_event(AUTHORIZED_USER, f"Deposited: {amt}")
+
+        elif choice == "4":
+            print("👋 Exiting Banking Menu")
+            break
+
+        else:
+            print("❌ Invalid choice")
 
 # ===============================
 # LOAD ML MODELS
@@ -60,7 +108,8 @@ lock_start_time = None
 cam = cv2.VideoCapture(0)
 
 print("📷 AI Banking System Started")
-print("Press 'q' to quit")
+print("Press 'B' for Banking Menu after login")
+print("Press 'Q' to quit")
 
 # ===============================
 # MAIN LOOP
@@ -81,7 +130,7 @@ while True:
         face = face.flatten().reshape(1, -1)
 
         # ===============================
-        # CHECK IF SYSTEM IS LOCKED
+        # CHECK FRAUD LOCK
         # ===============================
         if locked:
             if current_time - lock_start_time >= LOCK_TIME:
@@ -112,6 +161,9 @@ while True:
 
             log_event(AUTHORIZED_USER, "ACCESS GRANTED")
 
+            cv2.putText(frame, "Press B for Banking Menu", (10, 30),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
+
         else:
             failed_attempts += 1
             label = f"ACCESS DENIED ({failed_attempts})"
@@ -123,7 +175,6 @@ while True:
                 locked = True
                 lock_start_time = current_time
                 label = "FRAUD ALERT - SYSTEM LOCKED"
-
                 log_event("Unknown", "FRAUD ALERT")
 
         # ===============================
@@ -135,7 +186,12 @@ while True:
 
     cv2.imshow("AI Banking System - Face Authentication", frame)
 
-    if cv2.waitKey(1) & 0xFF == ord('q'):
+    key = cv2.waitKey(1) & 0xFF
+
+    if key == ord('b') and not locked:
+        banking_menu()
+
+    if key == ord('q'):
         break
 
 # ===============================
